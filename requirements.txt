@@ -1,0 +1,2 @@
+python-pptx>=0.6.21
+bibtexparser>=1.2.0
