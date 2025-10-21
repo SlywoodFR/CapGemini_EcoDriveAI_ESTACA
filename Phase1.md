@@ -1,7 +1,6 @@
 # Phase 1 — Analyse du besoin et étude bibliographique
 
 Ce document rassemble la première phase du projet : compréhension du besoin, identification des facteurs influents sur la consommation des véhicules électriques (VE), définition des cas d'usage, et synthèse des approches et modèles existants (étude bibliographique). Il sert de base pour les phases suivantes (données, modélisation, validation, prototype).
-Ajout
 
 ---
 
