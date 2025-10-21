@@ -18,15 +18,27 @@ jobs:
           auto-update-conda: true
           use-mamba: true
 
-      - name: Create conda environment
+      - name: Create aconda environment
         run: |
           conda create -n ci-env python=3.10 -y
 
       - name: Install pip requirements into conda env
         run: |
-          # conda run exécute pip dans l'environnement sans dépendre de "conda activate"
           conda run -n ci-env pip install --upgrade pip
           conda run -n ci-env pip install -r requirements.txt
+
+      - name: Ensure flake8 is available
+        run: |
+          # Si flake8 n'est pas dans requirements.txt, on l'installe explicitement.
+          if ! conda run -n ci-env which flake8 >/dev/null 2>&1; then
+            conda run -n ci-env pip install flake8
+          else
+            echo "flake8 already installed"
+          fi
+
+      - name: Show installed packages (debug)
+        run: |
+          conda run -n ci-env pip freeze
 
       - name: Lint with flake8
         run: |
