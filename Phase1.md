@@ -15,13 +15,6 @@ Objectifs de la phase 1 :
 - Réaliser une revue bibliographique ciblée (modèles prédictifs, optimisation d'itinéraires, systèmes de recommandation, usages de GenAI).
 - Proposer métriques d'évaluation, sources de données et un plan d'étude / livrables.
 
-Parties prenantes typiques :
-- Utilisateurs finaux (conducteurs VE)
-- Gestionnaires de flotte / opérateurs
-- Ingénieurs data / ML
-- Experts véhicule (thermique, batterie, mécanique)
-- Autorités locales (pour la planification et contraintes réglementaires)
-
 ---
 
 ## 2. Facteurs influents sur la consommation d'un VE
@@ -55,9 +48,6 @@ Parties prenantes typiques :
 - Style de conduite / comportement du conducteur
   - Agressivité (fréquence d'accélérations => indicateurs)
   - Anticipation (conduite douce vs brutale)
-- Données additionnelles
-  - Itinéraire proposé (distance, nombre d'intersections)
-  - Temps de trajet prévu / réel
 
 ---
 
@@ -67,14 +57,14 @@ Parties prenantes typiques :
    - Prévision d'énergie (kWh) pour un trajet donné (sur trajectoire connue ou profil attendu).
    - Estimation de SoC restant en fonction d'un plan de route.
 
-2. Recommandations de conduite personnalisées (en temps réel ou a posteriori)
-   - Conseils pour réduire la consommation (vitesse, accélération, plages de récupération).
-   - Feedback personnalisé (score éco-conduite, actions correctives).
-
-3. Planification de trajets optimisés en énergie
+2. Planification de trajets optimisés en énergie
    - Itinéraire économisant l'énergie (plutôt que le temps ou la distance).
    - Itinéraire multi-critère (temps vs énergie vs sécurité vs points de recharge).
    - Intégration des bornes de recharge (choix des arrêts, SOC cible).
+
+3.  Recommandations de conduite personnalisées (en temps réel ou a posteriori)
+   - Conseils pour réduire la consommation (vitesse, accélération, plages de récupération).
+   - Feedback personnalisé (score éco-conduite, actions correctives).
 
 4. Génération de scénarios et explications (usage GenAI)
    - Aide à la décision basée sur explications naturelles (pourquoi un itinéraire est plus économe).
@@ -82,9 +72,7 @@ Parties prenantes typiques :
 
 ---
 
-## 4. Étude bibliographique — panorama des approches
-
-Remarque : la revue devra couvrir articles (IEEE, TRB, Transportation Research, Energy), communications (arXiv), rapports (NREL, laboratoires), ainsi que jeux de données et benchmarks.
+## 4. Panorama des approches
 
 ### 4.1 Approches physiques / heuristiques
 - Modèles physiques basés sur la dynamique du véhicule : bilan puissance = résistance aérodynamique + roulement + pente + accélération + pertes (moteur, conversion).
@@ -131,12 +119,12 @@ Remarque : la revue devra couvrir articles (IEEE, TRB, Transportation Research, 
 ## 5. Données : sources, format attendu, enrichissements
 
 Sources potentielles (à rechercher et valider) :
-- Données de flotte ou CAN bus (vitesse, RPM, courant/tension, SoC, HVAC states).
-- Traces GPS (position, vitesse), capteurs IMU.
+- CAN bus (vitesse, RPM, courant/tension, SoC, HVAC states).
+- Traces GPS ou capteurs IMU (position, vitesse).
 - Profils altitude (DEM / SRTM) couplés à trajets (OpenStreetMap pour topologie).
 - Données météo (température, vent) historiques par timestamp/position.
 - Modèles trafic / données historiques (TMC, HERE, TomTom).
-- Jeux publics / rapports : rechercher NREL EV Project, TSDC (U.S. DOT Transportation Secure Data Center), jeux sur Kaggle (énergie / trajets), publications académiques partageant datasets.
+- Jeux publics / rapports : rechercher NREL EV Project, TSDC (U.S. DOT Transportation Secure Data Center), jeux sur Kaggle (énergie / trajets), publications académiques partageant datasets, base de données CapGemini.
 
 Format conseillé (par enregistrement de trajet) :
 - Identifiant trajet, timestamps, lat/lon, altitude, vitesse, acceleration, road_type, traffic_flag, SoC, courant_batterie, tension_batterie, HVAC_on, masse_estimée, température_ambiante.
@@ -175,15 +163,15 @@ Pour recommandations :
 3. Approches séquentielles : LSTM / Transformer sur séquences de vitesse/accélération.
 4. Grey-box : physique + ML pour corriger résidus.
 5. Évaluation croisée par trajets (leave-one-route-out / leave-one-vehicle-out) pour tester généralisation.
-6. Test d'itinéraires : comparer eco-routing vs shortest-time vs shortest-distance sur un ensemble de trajets réels/simulés.
+6. Test d'itinéraires : comparer eco-routing vs shortest-time vs shortest-distance sur un ensemble de trajets réels/simulés (en fonction des jeux de données          sélectionnées).
 
 ---
 
-## 8. Outils & bibliothèques recommandés
+## 8. Outils & bibliothèques possibles
 
 - Data processing : pandas, geopandas, shapely
-- Routage & cartes : OpenStreetMap, osmnx, OSRM, GraphHopper, HERE APIs (si licences)
-- Elevation / DEM : SRTM, AWS Terrain Tiles, Google Elevation API (selon budget)
+- Routage & cartes : OpenStreetMap, osmnx, OSRM, GraphHopper, HERE APIs (besoin licences)
+- Elevation / DEM : SRTM, AWS Terrain Tiles, Google Elevation API (besoin licences)
 - ML & DL : scikit-learn, XGBoost/LightGBM/CatBoost, PyTorch / TensorFlow, PyTorch Lightning
 - GNN : PyTorch Geometric, DGL
 - Hyperopt / Optuna pour tuning
@@ -191,7 +179,7 @@ Pour recommandations :
 
 ---
 
-## 9. Exemples de références et mots-clés à rechercher
+## 9. Exemples de références et mots-clés recherché
 
 Mots-clés :
 - "electric vehicle energy consumption prediction"
@@ -216,11 +204,3 @@ Sources / revues utiles :
 - Hétérogénéité des véhicules : un modèle formé sur un type peut mal généraliser à d'autres (nécessité d'adaptation/fine-tuning).
 - Données privées / sensibles : gestion RGPD, anonymisation des traces.
 - Trade-offs pratiques : itinéraire économisant énergie peut être plus long / moins sûr — nécessité d'intégrer contraintes multi-critères.
-
----
-
-## Annexes (suggestions de lecture / sources à vérifier)
-- Revues IEEE / Transportation Research (recherche via Google Scholar)
-- Rapports NREL sur les projets EV (NREL EV Project)
-- U.S. DOT — Transportation Secure Data Center (TSDC) (traces de trajets)
-- Recherches arXiv : "vehicle energy consumption prediction", "eco-routing"
