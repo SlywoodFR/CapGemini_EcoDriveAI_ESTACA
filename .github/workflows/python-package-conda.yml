@@ -1,34 +1,56 @@
-name: Python Package using Conda
+name: Python package (Conda)
 
-on: [push]
+on:
+  push:
+  pull_request:
 
 jobs:
-  build-linux:
+  build:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 5
-
+      matrix:
+        python: [3.10]  # ajoutez 3.11 si vous voulez tester plusieurs versions
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.10'
-    - name: Add conda to system path
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        echo $CONDA/bin >> $GITHUB_PATH
-    - name: Install dependencies
-      run: |
-        conda env update --file requirements.txt --name base
-    - name: Lint with flake8
-      run: |
-        conda install flake8
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        conda install pytest
-        pytest
+      - uses: actions/checkout@v4
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          python-version: ${{ matrix.python }}
+          auto-update-conda: true
+          use-mamba: true
+          channels: conda-forge,defaults
+          environment-file: requirements.txt
+          activate-environment: ci-env
+
+      - name: Cache conda and pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.conda/pkgs
+            ~/.conda/environments
+            ~/.cache/pip
+          key: ${{ runner.os }}-conda-${{ matrix.python }}-${{ hashFiles('environment.yml') }}
+
+      - name: Show conda info
+        run: |
+          conda info
+          conda list
+
+      - name: Lint with flake8
+        run: |
+          # l'environnement ci-env est activé par setup-miniconda
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run tests
+        run: |
+          pytest --maxfail=1 --disable-warnings -q
+        # optionally upload junit xml for coverage tools / CI parsers
+
+      - name: Upload test results (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: ./tests/reports || ./pytest-results.xml
