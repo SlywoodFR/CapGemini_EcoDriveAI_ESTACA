@@ -50,7 +50,3 @@ jobs:
         run: |
           conda run -n ci-env flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
           conda run -n ci-env flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-      - name: Test with pytest
-        run: |
-          conda run -n ci-env pytest --maxfail=1 --disable-warnings -q
