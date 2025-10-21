@@ -25,7 +25,7 @@ Générer le PDF
 
 - Lancer (/!\Spécifier le fichier d'entrée et de sortie) :
 ```bash
-  python convert_md_to_pdf.py monfichier.md -o sortie.pdf
+  python md_to_pdf.py monfichier.md -o sortie.pdf
 ```
 
 # Pré-requis pour les scripts
