@@ -18,7 +18,7 @@ jobs:
           auto-update-conda: true
           use-mamba: true
 
-      - name: Create aconda environment
+      - name: Create a conda environment
         run: |
           conda create -n ci-env python=3.10 -y
 
@@ -27,13 +27,19 @@ jobs:
           conda run -n ci-env pip install --upgrade pip
           conda run -n ci-env pip install -r requirements.txt
 
-      - name: Ensure flake8 is available
+      - name: Ensure flake8 and pytest are available
         run: |
-          # Si flake8 n'est pas dans requirements.txt, on l'installe explicitement.
+          # Installer flake8 si absent
           if ! conda run -n ci-env which flake8 >/dev/null 2>&1; then
             conda run -n ci-env pip install flake8
           else
             echo "flake8 already installed"
+          fi
+          # Installer pytest si absent
+          if ! conda run -n ci-env which pytest >/dev/null 2>&1; then
+            conda run -n ci-env pip install pytest
+          else
+            echo "pytest already installed"
           fi
 
       - name: Show installed packages (debug)
