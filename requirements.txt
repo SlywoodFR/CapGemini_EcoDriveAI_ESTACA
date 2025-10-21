@@ -1,2 +1,6 @@
 python-pptx>=0.6.21
 bibtexparser>=1.2.0
+pypandoc>=1.6
+markdown>=3.3
+weasyprint>=58.0
+Pygments>=2.0
