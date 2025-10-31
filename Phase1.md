@@ -22,14 +22,14 @@ Objectifs de la phase 1 :
 À collecter / prendre en compte dans les modèles :
 
 - Profil cinématique
-  - Vitesse instantanée et moyenne
-  - Accélérations / décélérations (profil en fréquence et amplitude)
+  - ## Vitesse instantanée et moyenne
+  - ## Accélérations / décélérations (profil en fréquence et amplitude)
   - Stop & go (nombre d'arrêts / reprises)
 - Topographie et géométrie de la route
   - Dénivelé (pente) et profil d'altitude
   - Courbes, rayon (impact sur vitesse)
 - Conditions ambiantes
-  - Température extérieure
+  - ## Température extérieure
   - Vent (direction/intensité) si disponible
   - Pluie/neige (adhérence)
 - Confort & usages embarqués
@@ -39,7 +39,7 @@ Objectifs de la phase 1 :
   - Masse totale (charge, passagers)
   - Aérodynamique (Cx), surface frontale
   - Résistance au roulement (pneus, pression)
-  - Capacités batterie, état de santé (SoH), SoC initial
+  - ## Capacités batterie, état de santé (SoH), SoC initial
   - Rendement régénération/freinage
 - Infrastructure et trafic
   - Type de route (urbain, périurbain, autoroute)
