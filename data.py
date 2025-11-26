@@ -1,3 +1,5 @@
+import time
+start_time = time.time()
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -65,6 +67,10 @@ def main():
         print(f"Mean Squared Error: {mse:.2f}")
         print(f"R² Score: {r2:.2f}")
 
+        print("Time of creation of AI : --- %s seconds ---" % (time.time() - start_time))
+
+        start_time_prediction = time.time()
+
         # Example prediction
         example_data = np.array([[111.5, 0, 30, 1, 1, 1823, 21]])  # Values of row 1
         example_data_scaled = scaler.transform(example_data)
@@ -72,5 +78,8 @@ def main():
         print(f"Example Prediction: E = {prediction[0]:.2f} kWh")
         print(f"Real Value: E = 12.0 kWh")
 
+        print("Time of prediction : --- %s seconds ---" % (time.time() - start_time_prediction))
+
 if __name__ == "__main__":
     main()
+
