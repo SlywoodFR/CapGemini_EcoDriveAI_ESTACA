@@ -52,7 +52,7 @@ def main():
         df_processed = preprocess_data(df)
         
         # Specify your feature columns and target variable
-        feature_columns = ['Speed_kmh','Acceleration_ms2','Temperature_C','Slope_%', 'Battery_State_%','Road_Type', 'Traffic_Condition', 'Vehicle_Weight_kg', 'Weather_Condition', 'Distance_Travelled_km']  
+        feature_columns = ['Speed_kmh','Temperature_C', 'Battery_State_%','Road_Type', 'Traffic_Condition', 'Vehicle_Weight_kg', 'Distance_Travelled_km']  
         target_column = 'Energy_Consumption_kWh'   
         
         X = df_processed[feature_columns]
@@ -66,10 +66,11 @@ def main():
         print(f"R² Score: {r2:.2f}")
 
         # Example prediction
-        example_data = np.array([[60, 1.5, 25, 2, 80, 1, 2, 1500, 1, 10]])  # Example feature values
+        example_data = np.array([[111.5, 0, 30, 1, 1, 1823, 21]])  # Values of row 1
         example_data_scaled = scaler.transform(example_data)
         prediction = model.predict(example_data_scaled)
         print(f"Example Prediction: E = {prediction[0]:.2f} kWh")
+        print(f"Real Value: E = 12.0 kWh")
 
 if __name__ == "__main__":
     main()

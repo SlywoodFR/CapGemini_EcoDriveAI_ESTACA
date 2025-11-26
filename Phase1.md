@@ -23,10 +23,10 @@ Objectifs de la phase 1 :
 
 - Profil cinématique
   - **Vitesse instantanée et moyenne**
-  - **Accélérations / décélérations (profil en fréquence et amplitude)**
+  - Accélérations / décélérations (profil en fréquence et amplitude)
   - Stop & go (nombre d'arrêts / reprises)
 - Topographie et géométrie de la route
-  - **Dénivelé (pente) et profil d'altitude**
+  - Dénivelé (pente) et profil d'altitude
   - Courbes, rayon (impact sur vitesse)
 - Conditions ambiantes
   - **Température extérieure**
