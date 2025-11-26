@@ -4,6 +4,7 @@ import urllib.parse
 import pandas as pd
 import requests_cache
 import requests
+import json
 from retry_requests import retry
 
 # ----------------------------------------------------------------------
