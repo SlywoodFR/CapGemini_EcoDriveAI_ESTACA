@@ -10,7 +10,7 @@ Comme mentionné dans la partie 1, nous avons utiliser le site Kaggle pour trouv
 
 ## 2. Nettoyage du dataset et création du model de machinelearning
 
-Nous avons ensuite étudié quelle features serait possible à récupérer à partir uniquement des données véhicule et d'APIs avec le lieu de départ et le lieu d'arrivé, ce qui à donnée lieu à 7 features : la vitesse en km/h, l’état de la batterie en %, le type de route, les conditions de circulation, la température en °C, la masse du véhicule en kg et la distance parcourue en km.
+Nous avons ensuite étudié quelle features serait possible à récupérer à partir uniquement des données véhicule et d'APIs avec le lieu de départ et le lieu d'arrivé, ce qui à donnée lieu à 7 features : la vitesse en km/h, l’état de la batterie en %, le mode de conduite, le type de route, les conditions de circulation, la pente moyenne, la température en °C, la masse du véhicule en kg et la distance parcourue en km.
 
 Nous avons pu à partir de cela créer un logigramme :
 
@@ -22,8 +22,9 @@ Nous avons converti ce logigramme en code dans le fichier **data.py**.
 
 Pour ce code nous avons choisi les APIs que nous allions devoir utiliser et après reflexion nous aurons :
 
-- Traffic API de Tomtom : Récupère la vitesse moyenne d'un endroit en temps réel à partir des coordonées lat/long
-- Matrix Routing v2 API de Tomtom : Récupère le chemin entre deux points à partir des coordonées lat/long de ces points
+- Routing API de Tomtom : Récupère le chemin entre deux points à partir des coordonées lat/long de ces points
 - Geocoding API de Tomtom : Récupère les coordonées lat/long à partir d'une adresse
 - OpenMeteo : Récupère la température d'un endroit en temps réel à partir des coordonées lat/long
-
+- OpenMeteo Elevation : Récupère l'altitude d'un endroit en temps réel à partir des coordonées lat/long
+- Mapbox Static Images API : Génère une image de carte statique (PNG/JPG) personnalisable, permettant de superposer des itinéraires et des marqueurs via une simple URL.
+- API Plaque Immatriculation : Service permettant d'obtenir les caractéristiques techniques détaillées d'un véhicule (marque, modèle, poids à vide, etc.) à partir de son numéro d'immatriculation français.

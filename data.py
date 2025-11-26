@@ -54,7 +54,7 @@ def main():
         df_processed = preprocess_data(df)
         
         # Specify your feature columns and target variable
-        feature_columns = ['Speed_kmh','Temperature_C', 'Battery_State_%','Road_Type', 'Traffic_Condition', 'Vehicle_Weight_kg', 'Distance_Travelled_km','Driving_Mode']  
+        feature_columns = ['Speed_kmh','Temperature_C', 'Battery_State_%','Road_Type', 'Traffic_Condition', 'Vehicle_Weight_kg', 'Distance_Travelled_km','Driving_Mode', 'Slope_%']  
         target_column = 'Energy_Consumption_kWh'   
         
         X = df_processed[feature_columns]
@@ -72,7 +72,7 @@ def main():
         start_time_prediction = time.time()
 
         # Example prediction
-        example_data = np.array([[111.5, 0, 30, 1, 1, 1823, 21, 2]])  # Values of row 1
+        example_data = np.array([[111.5, 0, 30, 1, 1, 1823, 21, 2, 6.9]])  # Values of row 1
         example_data_scaled = scaler.transform(example_data)
         prediction = model.predict(example_data_scaled)
         print(f"Example Prediction: E = {prediction[0]:.2f} kWh")
