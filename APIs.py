@@ -422,6 +422,7 @@ def main():
         print(f"   Total Distance: {dist_km:.2f} km")
         print(f"   Est. Travel Time: {time_min:.0f} min")
         print(f"   Arrival: {result['arrival_time']}")
+        print(f"   (Routing API Latency: {route_latency:.4f}s)")
         
         # --- Task 3: Slope Analysis (New) ---
         if 'route_geometry' in result:
@@ -433,33 +434,45 @@ def main():
             print(f"\n⛰️  Slope Analysis (Open-Meteo)")
             print(f"   Original Points: {len(full_geometry)} -> Sampled Points: {len(sampled_geometry)}")
             
+            elevation_start_time = time.time()
             elevations = weather_service.get_elevations(sampled_geometry)
+            elevation_latency = time.time() - elevation_start_time
             
             if elevations and len(elevations) == len(sampled_geometry):
                 mean_slope = calculate_mean_slope(sampled_geometry, elevations)
                 print(f"   Mean Positive Slope: {mean_slope:.2f}%")
             else:
                 print("   Could not calculate slope (elevation data mismatch).")
+            
+            print(f"   (Elevation API Latency: {elevation_latency:.4f}s)")
 
         # --- Task 4: Generate Mapbox Map ---
         print(f"\n🗺️  Map Generation (Mapbox)")
         if 'route_geometry' in result and 'coordinates' in result:
+            map_start_time = time.time()
             success = nav_service.generate_mapbox_map(
                 route_geometry=result['route_geometry'], 
                 waypoints=result['coordinates'],
                 filename="mapbox_trip.png"
             )
+            map_latency = time.time() - map_start_time
+            
             if success:
                 print(f"   Map image saved as 'mapbox_trip.png'. Check your folder!")
+            
+            print(f"   (Mapbox API Latency: {map_latency:.4f}s)")
     else:
         print(f"   ❌ Error: {result['message']}")
 
-    print(f"   (Routing API Latency: {route_latency:.4f}s)")
+    
 
     # --- Task 5: License Plate Lookup (Updated) ---
     print(f"\n🇫🇷 License Plate Analysis")
-    sample_plate = "DN-097-NX" # Example plate to test
+    sample_plate = "AA-123-BC" # Example plate to test
+    
+    plate_start_time = time.time()
     vehicle_data = plate_service.get_vehicle_details(sample_plate)
+    plate_latency = time.time() - plate_start_time
     
     if vehicle_data:
         # Extract fields based on the user provided JSON structure
@@ -479,8 +492,8 @@ def main():
         print(f"   Weight (poids): {poids_clean} kg")
     else:
         print("   Failed to retrieve vehicle details.")
-
-    print("\n✅ All tasks completed.\n")
+        
+    print(f"   (License Plate API Latency: {plate_latency:.4f}s)")
 
 if __name__ == "__main__":
     main()

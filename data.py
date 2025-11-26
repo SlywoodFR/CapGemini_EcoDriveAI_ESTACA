@@ -47,7 +47,7 @@ def train_model(X, y):
 
 def main():
     # Load the data
-    df = load_data('EV_Energy_Consumption_Dataset.csv')
+    df = load_data('Datasets/EV_Energy_Consumption_Dataset.csv')
     
     if df is not None:
         # Preprocess the data
