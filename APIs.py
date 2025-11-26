@@ -404,9 +404,8 @@ def main():
 
     # --- Task 2: Calculate Route ---
     trip_plan = [
-        "31 Rue Bernard Le Pecq, 53000 Laval, France",
-        "30 Rue Saint-Guillaume, 75007 Paris, France", 
-        "31 Rue de la Villette, 75019 Paris, France"
+        "Rennes, France",
+        "Laval, France", 
     ]
 
     print(f"\n🚗  Route Calculation")
