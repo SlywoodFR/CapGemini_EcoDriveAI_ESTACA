@@ -2,3 +2,7 @@ python-pptx>=0.6.21
 bibtexparser>=1.2.0
 pandas>=2.3.3
 numpy>=2.3.5
+openmeteo-requests>=1.7.4
+requests-cache>=1.2.1
+retry-requests>=2.0.0
+requests>=2.7.0
