@@ -1,2 +1,4 @@
 python-pptx>=0.6.21
 bibtexparser>=1.2.0
+pandas>=2.3.3
+numpy>=2.3.5
