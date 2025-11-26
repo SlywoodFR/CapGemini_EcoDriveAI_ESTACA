@@ -26,7 +26,7 @@ Objectifs de la phase 1 :
   - **Accélérations / décélérations (profil en fréquence et amplitude)**
   - Stop & go (nombre d'arrêts / reprises)
 - Topographie et géométrie de la route
-  - Dénivelé (pente) et profil d'altitude
+  - **Dénivelé (pente) et profil d'altitude**
   - Courbes, rayon (impact sur vitesse)
 - Conditions ambiantes
   - **Température extérieure**
@@ -36,14 +36,14 @@ Objectifs de la phase 1 :
   - Chauffage / climatisation / ventilation (HVAC)
   - Accessoires (phares, radio, etc.)
 - Propriétés du véhicule
-  - Masse totale (charge, passagers)
+  - **Masse totale (charge, passagers)**
   - Aérodynamique (Cx), surface frontale
   - Résistance au roulement (pneus, pression)
   - **Capacités batterie, état de santé (SoH), SoC initial**
   - Rendement régénération/freinage
 - Infrastructure et trafic
-  - Type de route (urbain, périurbain, autoroute)
-  - Conditions de trafic (flux, embouteillages)
+  - **Type de route (urbain, périurbain, autoroute)**
+  - **Conditions de trafic (flux, embouteillages)**
   - Limitations de vitesse
 - Style de conduite / comportement du conducteur
   - Agressivité (fréquence d'accélérations => indicateurs)
