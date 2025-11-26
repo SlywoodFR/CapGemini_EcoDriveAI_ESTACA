@@ -65,5 +65,11 @@ def main():
         print(f"Mean Squared Error: {mse:.2f}")
         print(f"R² Score: {r2:.2f}")
 
+        # Example prediction
+        example_data = np.array([[60, 1.5, 25, 2, 80, 1, 2, 1500, 1, 10]])  # Example feature values
+        example_data_scaled = scaler.transform(example_data)
+        prediction = model.predict(example_data_scaled)
+        print(f"Example Prediction: E = {prediction[0]:.2f} kWh")
+
 if __name__ == "__main__":
     main()
