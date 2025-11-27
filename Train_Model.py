@@ -1,8 +1,8 @@
 import time
 import pandas as pd
 import numpy as np
-import pickle  # <--- Added pickle
-from sklearn.model_selection import train_test_split
+import pickle
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
@@ -24,7 +24,7 @@ def preprocess_data(df):
     df = df.dropna()
     return df
 
-# Train model
+# Train model with Cross-Validation (Grid Search)
 def train_model(X, y):
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -34,22 +34,45 @@ def train_model(X, y):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Create and train the model
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train_scaled, y_train)
+    # Define the parameter grid to search
+    # This tries different combinations to find the best "settings" for the AI
+    param_grid = {
+        'n_estimators': [100, 200, 300],      # Number of trees
+        'max_depth': [None, 10, 20, 30],      # Max depth of trees
+        'min_samples_split': [2, 5, 10],      # Min samples to split a node
+        'min_samples_leaf': [1, 2, 4]         # Min samples at a leaf node
+    }
     
-    # Make predictions
-    y_pred = model.predict(X_test_scaled)
+    # Initialize base model
+    rf = RandomForestRegressor(random_state=42)
     
-    # Calculate metrics
+    # Initialize GridSearchCV
+    # cv=5 means "5-Fold Cross Validation" (Train on 4 parts, test on 1, repeat 5 times)
+    # n_jobs=-1 means use all computer processors to go faster
+    print("Starting Hyperparameter Tuning (this may take a minute)...")
+    grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, 
+                               cv=5, n_jobs=-1, verbose=1, scoring='r2')
+    
+    # Fit the grid search
+    grid_search.fit(X_train_scaled, y_train)
+    
+    # Get the best model found
+    best_model = grid_search.best_estimator_
+    
+    print(f"\n✅ Best Parameters found: {grid_search.best_params_}")
+    print(f"Best Cross-Validation R2 Score: {grid_search.best_score_:.4f}")
+    
+    # Make predictions using the best model
+    y_pred = best_model.predict(X_test_scaled)
+    
+    # Calculate metrics on the test set
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
     
-    return model, scaler, mse, r2, X_test, y_test, y_pred
+    return best_model, scaler, mse, r2, X_test, y_test, y_pred
 
 def main():
     # Load the data
-    # Make sure this path points to your actual CSV file
     df = load_data('Datasets/EV_Energy_Consumption_Dataset.csv')
     
     if df is not None:
@@ -67,18 +90,32 @@ def main():
         model, scaler, mse, r2, X_test, y_test, y_pred = train_model(X, y)
         
         # Print results
-        print(f"Mean Squared Error: {mse:.2f}")
-        print(f"R² Score: {r2:.2f}")
-        print("Time of creation of AI : --- %s seconds ---" % (time.time() - start_time))
+        print("-" * 30)
+        print(f"Final Test Mean Squared Error: {mse:.4f}")
+        print(f"Final Test R² Score: {r2:.4f}")
+        print("-" * 30)
+
+        print("Total execution time : --- %s seconds ---" % (time.time() - start_time))
+
+        # Example prediction
+        print("\nRunning test prediction...")
+        start_time_prediction = time.time()
+        example_data = np.array([[111.5, 0, 30, 1, 1, 1823, 21, 2, 6.9]])
+        example_data_scaled = scaler.transform(example_data)
+        prediction = model.predict(example_data_scaled)
+        
+        print(f"Example Prediction: E = {prediction[0]:.2f} kWh")
+        print(f"Real Value: E = 12.0 kWh")
+        print("Prediction time : --- %s seconds ---" % (time.time() - start_time_prediction))
 
         # --- SAVE THE MODEL AND SCALER ---
-        print("Saving model to 'ev_model_bundle.pkl'...")
+        # We save it so predict_app.py and geo_weather_app.py can use the IMPROVED model
+        print("\nSaving improved model to 'ev_model_bundle.pkl'...")
         
-        # We create a dictionary to store both the model and the scaler
         model_bundle = {
             'model': model,
             'scaler': scaler,
-            'feature_names': feature_columns # Optional: helpful to remember the input order
+            'feature_names': feature_columns
         }
         
         with open('ev_model_bundle.pkl', 'wb') as f:
