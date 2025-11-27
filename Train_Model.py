@@ -1,11 +1,13 @@
 import time
-start_time = time.time()
 import pandas as pd
 import numpy as np
+import pickle  # <--- Added pickle
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+
+start_time = time.time()
 
 # Load the data
 def load_data(filepath):
@@ -47,6 +49,7 @@ def train_model(X, y):
 
 def main():
     # Load the data
+    # Make sure this path points to your actual CSV file
     df = load_data('Datasets/EV_Energy_Consumption_Dataset.csv')
     
     if df is not None:
@@ -66,20 +69,22 @@ def main():
         # Print results
         print(f"Mean Squared Error: {mse:.2f}")
         print(f"R² Score: {r2:.2f}")
-
         print("Time of creation of AI : --- %s seconds ---" % (time.time() - start_time))
 
-        start_time_prediction = time.time()
-
-        # Example prediction
-        example_data = np.array([[111.5, 0, 30, 1, 1, 1823, 21, 2, 6.9]])  # Values of row 1
-        example_data_scaled = scaler.transform(example_data)
-        prediction = model.predict(example_data_scaled)
-        print(f"Example Prediction: E = {prediction[0]:.2f} kWh")
-        print(f"Real Value: E = 12.0 kWh")
-
-        print("Time of prediction : --- %s seconds ---" % (time.time() - start_time_prediction))
+        # --- SAVE THE MODEL AND SCALER ---
+        print("Saving model to 'ev_model_bundle.pkl'...")
+        
+        # We create a dictionary to store both the model and the scaler
+        model_bundle = {
+            'model': model,
+            'scaler': scaler,
+            'feature_names': feature_columns # Optional: helpful to remember the input order
+        }
+        
+        with open('ev_model_bundle.pkl', 'wb') as f:
+            pickle.dump(model_bundle, f)
+            
+        print("Model saved successfully!")
 
 if __name__ == "__main__":
     main()
-
