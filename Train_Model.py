@@ -4,8 +4,13 @@ import numpy as np
 import pickle
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+
+# Import different model types to compare
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.svm import SVR
+from sklearn.neural_network import MLPRegressor  # Added Neural Network
 
 start_time = time.time()
 
@@ -24,8 +29,8 @@ def preprocess_data(df):
     df = df.dropna()
     return df
 
-# Train model with Cross-Validation (Grid Search)
-def train_model(X, y):
+# Compare multiple models and select the best one
+def train_and_compare_models(X, y):
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
@@ -34,88 +39,128 @@ def train_model(X, y):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Define the parameter grid to search
-    # This tries different combinations to find the best "settings" for the AI
-    param_grid = {
-        'n_estimators': [100, 200, 300],      # Number of trees
-        'max_depth': [None, 10, 20, 30],      # Max depth of trees
-        'min_samples_split': [2, 5, 10],      # Min samples to split a node
-        'min_samples_leaf': [1, 2, 4]         # Min samples at a leaf node
-    }
-    
-    # Initialize base model
-    rf = RandomForestRegressor(random_state=42)
-    
-    # Initialize GridSearchCV
-    # cv=5 means "5-Fold Cross Validation" (Train on 4 parts, test on 1, repeat 5 times)
-    # n_jobs=-1 means use all computer processors to go faster
-    print("Starting Hyperparameter Tuning (this may take a minute)...")
-    grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, 
-                               cv=5, n_jobs=-1, verbose=1, scoring='r2')
-    
-    # Fit the grid search
-    grid_search.fit(X_train_scaled, y_train)
-    
-    # Get the best model found
-    best_model = grid_search.best_estimator_
-    
-    print(f"\n✅ Best Parameters found: {grid_search.best_params_}")
-    print(f"Best Cross-Validation R2 Score: {grid_search.best_score_:.4f}")
-    
-    # Make predictions using the best model
-    y_pred = best_model.predict(X_test_scaled)
-    
-    # Calculate metrics on the test set
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    
-    return best_model, scaler, mse, r2, X_test, y_test, y_pred
+    # Define a list of models to test with their specific hyperparameter grids
+    model_candidates = [
+        {
+            'name': 'Linear Regression (Baseline)',
+            'model': LinearRegression(),
+            'params': {} 
+        },
+        {
+            'name': 'Random Forest',
+            'model': RandomForestRegressor(random_state=42),
+            'params': {
+                'n_estimators': [100, 200, 300],
+                'max_depth': [None, 10, 20],
+                'min_samples_split': [2, 5]
+            }
+        },
+        {
+            'name': 'Gradient Boosting',
+            'model': GradientBoostingRegressor(random_state=42),
+            'params': {
+                'n_estimators': [200, 300, 500],
+                'learning_rate': [0.05, 0.1, 0.2],
+                'max_depth': [3, 4, 5]
+            }
+        },
+        {
+            'name': 'Support Vector Regression (SVR)',
+            'model': SVR(),
+            'params': {
+                'C': [1, 10, 100],
+                'kernel': ['rbf'], 
+                'epsilon': [0.1, 0.2]
+            }
+        },
+        {
+            'name': 'Neural Network (MLP)',
+            'model': MLPRegressor(random_state=42, max_iter=1000), # Increased max_iter for convergence
+            'params': {
+                'hidden_layer_sizes': [(50, 50), (100,), (100, 50)], # Deep vs Wide networks
+                'activation': ['relu', 'tanh'],
+                'alpha': [0.0001, 0.05] # Regularization to prevent overfitting
+            }
+        }
+    ]
+
+    best_model = None
+    best_r2 = -np.inf
+    best_name = ""
+    best_mse = 0
+
+    print(f"\n🚀 Starting Model Comparison with {len(model_candidates)} candidates...\n")
+    print("You will see a log line for each test below. This confirms the program is running!")
+
+    for candidate in model_candidates:
+        print(f"--- Training {candidate['name']} ---")
+        
+        if candidate['params']:
+            # verbose=3 ensures you see output for every step
+            grid = GridSearchCV(estimator=candidate['model'], 
+                                param_grid=candidate['params'], 
+                                cv=5, n_jobs=-1, verbose=3, scoring='r2')
+            grid.fit(X_train_scaled, y_train)
+            current_model = grid.best_estimator_
+            print(f"   Best Params: {grid.best_params_}")
+        else:
+            current_model = candidate['model']
+            current_model.fit(X_train_scaled, y_train)
+        
+        # Evaluate on the Test Set
+        y_pred = current_model.predict(X_test_scaled)
+        r2 = r2_score(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        
+        print(f"   👉 Test R² Score: {r2:.4f} | MSE: {mse:.4f}")
+        
+        if r2 > best_r2:
+            best_r2 = r2
+            best_mse = mse
+            best_model = current_model
+            best_name = candidate['name']
+            print(f"   🌟 New Leader!")
+        
+        print("") 
+
+    return best_model, scaler, best_mse, best_r2, best_name
 
 def main():
     # Load the data
     df = load_data('Datasets/EV_Energy_Consumption_Dataset.csv')
     
     if df is not None:
-        # Preprocess the data
+        # Preprocess the data (Original features only)
         df_processed = preprocess_data(df)
         
-        # Specify your feature columns and target variable
+        # Original feature columns
         feature_columns = ['Speed_kmh','Temperature_C', 'Battery_State_%','Road_Type', 'Traffic_Condition', 'Vehicle_Weight_kg', 'Distance_Travelled_km','Driving_Mode', 'Slope_%']  
         target_column = 'Energy_Consumption_kWh'   
         
-        X = df_processed[feature_columns]
+        actual_features = [col for col in feature_columns if col in df_processed.columns]
+        X = df_processed[actual_features]
         y = df_processed[target_column]
         
-        # Train the model
-        model, scaler, mse, r2, X_test, y_test, y_pred = train_model(X, y)
+        # Run the comparison
+        model, scaler, mse, r2, model_name = train_and_compare_models(X, y)
         
-        # Print results
-        print("-" * 30)
+        # Print Final Results
+        print("=" * 40)
+        print(f"🏆 BEST MODEL: {model_name}")
         print(f"Final Test Mean Squared Error: {mse:.4f}")
         print(f"Final Test R² Score: {r2:.4f}")
-        print("-" * 30)
+        print("=" * 40)
 
         print("Total execution time : --- %s seconds ---" % (time.time() - start_time))
 
-        # Example prediction
-        print("\nRunning test prediction...")
-        start_time_prediction = time.time()
-        example_data = np.array([[111.5, 0, 30, 1, 1, 1823, 21, 2, 6.9]])
-        example_data_scaled = scaler.transform(example_data)
-        prediction = model.predict(example_data_scaled)
-        
-        print(f"Example Prediction: E = {prediction[0]:.2f} kWh")
-        print(f"Real Value: E = 12.0 kWh")
-        print("Prediction time : --- %s seconds ---" % (time.time() - start_time_prediction))
-
-        # --- SAVE THE MODEL AND SCALER ---
-        # We save it so predict_app.py and geo_weather_app.py can use the IMPROVED model
-        print("\nSaving improved model to 'ev_model_bundle.pkl'...")
+        # --- SAVE THE BEST MODEL ---
+        print(f"\nSaving {model_name} to 'ev_model_bundle.pkl'...")
         
         model_bundle = {
             'model': model,
             'scaler': scaler,
-            'feature_names': feature_columns
+            'feature_names': actual_features,
+            'model_type': model_name
         }
         
         with open('ev_model_bundle.pkl', 'wb') as f:
