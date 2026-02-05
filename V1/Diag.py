@@ -13,7 +13,7 @@ except Exception as e:
     print(f"❌ Erreur : {e}")
     exit()
 
-# 2. Test avec une ligne EXACTE de votre dataset (celle que vous m'avez montrée)
+# 2. Test avec une ligne EXACTE du dataset
 # On simule ce que 'Train_Model' a fait
 print("\n🧪 TEST 1 : Donnée du CSV (Training)")
 csv_row = {
