@@ -1,0 +1,21 @@
+============================================================
+⚡ EV SMART ROUTER - NAVIGATION OPTIMISÉE
+============================================================
+   🔋 93715 bornes de recharge prêtes.
+
+📍 Analyse du trajet : Rennes, France -> Laval, France
+📊 Diagnostic direct : Arrivée estimée à 7.1%
+⚠️ Alerte : SOC trop bas. Recherche d'une borne optimale...
+✅ Borne trouvée : Vitré II (320.0 kW)
+
+--------------------------------------------------
+🏁 RÉSUMÉ DU TRAJET OPTIMISÉ :
+   ⏱️  Temps total (Route+Charge) : 83 min
+   🔌 Temps de charge : 3 min
+   🔋 SOC Sortie Borne : 39%
+   🔋 SOC Arrivée : 20.0%
+--------------------------------------------------
+INFO:APIs:🗺️ Carte sauvegardée : trajet_optimise.png
+
+PyQT
+Figma
