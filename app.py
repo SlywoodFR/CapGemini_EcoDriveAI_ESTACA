@@ -67,13 +67,13 @@ def predict_energy_safe(model, context):
 # --- SIDEBAR DYNAMIQUE ---
 with st.sidebar:
     st.title("🔋 Configuration")
-    dep_city = st.text_input("Départ", "Rennes, France")
-    arr_city = st.text_input("Arrivée", "Laval, France")
+    dep_city = st.text_input("Départ")
+    arr_city = st.text_input("Arrivée")
     
     st.divider()
     st.subheader("🚗 État du véhicule")
     
-    soc_init = 30
+    soc_init = 100
     capa = 60.0
     show_manual_inputs = True
 
@@ -116,7 +116,7 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    soc_target = st.slider("Batterie arrivée visée (%)", 0, 100, 20)
+    soc_target = st.slider("Batterie arrivée visée (%)", 0, 100, 0)
     btn_calcul = st.button("🚀 Calculer l'itinéraire", width='stretch')
 
 # --- LOGIQUE DE CALCUL SÉCURISÉE ---
