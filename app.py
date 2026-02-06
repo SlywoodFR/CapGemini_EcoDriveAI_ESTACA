@@ -122,14 +122,26 @@ with st.sidebar:
 
 # --- CALCUL & AFFICHAGE ---
 if btn_calcul:
-    with st.spinner("Calcul en cours..."):
+    with st.spinner("IA en mode calcul global..."):
         c1, c2 = nav.get_coords(dep_city), nav.get_coords(arr_city)
         if c1 and c2:
             route_base = nav.calculate_route(c1, c2)
-            meteo = weather.get_local_weather(c1[0], c1[1])
-            pts_km, pts_soc = [0], [soc_init]
             
-            conso_ia = predict_energy_safe(model, {'Speed_kmh': route_base['vitesse_moy'], 'Distance_Travelled_km': route_base['summary']['lengthInMeters']/1000, 'Battery_State_%': soc_init, 'Humidity_%': meteo['humidity'], 'Battery_Temperature_C': 25})
+            # --- CORRECTION SÉCURITÉ ---
+            if route_base is None:
+                st.error("❌ Impossible de calculer l'itinéraire. Vérifiez les adresses saisies.")
+            else:
+                meteo = weather.get_local_weather(c1[0], c1[1])
+                pts_km, pts_soc = [0], [soc_init]
+                
+                # Le calcul IA ne se lance que si route_base est valide
+                conso_ia = predict_energy_safe(model, {
+                    'Speed_kmh': route_base['vitesse_moy'], 
+                    'Distance_Travelled_km': route_base['summary']['lengthInMeters']/1000, 
+                    'Battery_State_%': soc_init, 
+                    'Humidity_%': meteo['humidity'], 
+                    'Battery_Temperature_C': 25
+                })
             needs_stop = (soc_init - (conso_ia/capa*100)) < soc_target
             t_charge, borne = 0, None
             
