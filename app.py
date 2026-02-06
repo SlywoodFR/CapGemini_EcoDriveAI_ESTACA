@@ -19,6 +19,7 @@ st.set_page_config(page_title="EcoDriveAI - Planificateur", layout="wide", page_
 # --- BANDEAU DE TITRE ---
 st.title("⚡ EcoDriveAI")
 st.markdown("### Optimisation de trajets longue distance par Intelligence Artificielle")
+st.caption("Gestion dynamique de la recharge, respect du SOC de sécurité et précision à l'arrivée.")
 
 # Initialisation
 if 'calcul_fait' not in st.session_state: st.session_state.calcul_fait = False
@@ -33,6 +34,10 @@ def init_services():
     return nav, weather, charger, vehicle_db, model
 
 nav, weather, charger, vehicle_db, model = init_services()
+
+# --- MESSAGE DE LANCEMENT ---
+if not st.session_state.get('calcul_fait'):
+    st.info("👋 **Bienvenue !** Configurez votre trajet dans la barre latérale à gauche, puis cliquez sur **Calculer l'itinéraire** pour générer votre plan de route personnalisé.")
 
 # --- PRÉDICTION IA ---
 def predict_full_trip(model, route_summary, start_soc, humidity):
@@ -61,7 +66,7 @@ with st.sidebar:
     
     soc_init = st.slider("Batterie départ (%)", 0, 100, 100)
     soc_safety = st.slider("🛡️ SOC sécurité (%)", 0, 25, 5)
-    soc_target = st.slider("🏁 SOC arrivée (%)", soc_safety, 100, 20)
+    soc_target = st.slider("🏁 SOC arrivée (%)", soc_safety, 100, soc_safety)
     btn_calcul = st.button("🚀 Calculer", width='stretch')
 
 # --- LOGIQUE DE CALCUL ---
