@@ -1,29 +1,14 @@
-# --- Bibliothèques de base & Compatibilité Python 3.13 ---
 streamlit>=1.40.0
 altair>=5.0.0,<6.0.0
 pandas>=2.2.0
 numpy>=2.1.0
-
-# --- Services API & Navigation ---
-requests>=2.31.0
-requests-cache>=1.2.0
-retry-requests>=2.0.0
-openmeteo-requests>=1.2.0
 smartcar>=6.19.1
-
-# --- Visualisation & Cartographie ---
 folium>=0.17.0
 streamlit-folium>=0.21.0
 plotly>=5.20.0
-matplotlib>=3.9.0
-
-# --- IA & Traitement de données ---
+joblib>=1.4.0
+requests>=2.31.0
+requests-cache>=1.2.0
+python-pptx>=0.6.21
 scikit-learn>=1.5.0
 xgboost>=2.1.0
-lightgbm>=4.5.0
-joblib>=1.4.0
-
-# --- Utilitaires ---
-python-pptx>=0.6.21
-bibtexparser>=1.4.0
-ipykernel

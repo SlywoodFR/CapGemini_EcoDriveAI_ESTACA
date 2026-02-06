@@ -4,210 +4,156 @@ import joblib
 import folium
 from streamlit_folium import st_folium
 import plotly.graph_objects as go
-from APIs import WeatherService, NavigationService, ChargingService
+from APIs import WeatherService, NavigationService, ChargingService, VehicleService
 import numpy as np
 import smartcar
 
 # --- CONFIGURATION ---
 TOMTOM_KEY = "Mn7jMVv7fCgBTRjLxMEQqiLqSTQzmlYC"
-EV_MODELS = {"Tesla Model 3 LR": 75.0, "Tesla Model 3 Std": 60.0, "Megane E-Tech": 60.0, "Peugeot e-208": 50.0}
-
 SC_CLIENT_ID = '474fb84e-7dad-49d9-af3d-b82727c213db'
 SC_CLIENT_SECRET = '2c9940fb-3997-4b0e-b57b-6f3f521df2eb'
 SC_REDIRECT_URI = 'http://localhost:8501'
 
-st.set_page_config(page_title="EV Smart Routing", layout="wide", page_icon="⚡")
+st.set_page_config(page_title="EcoDriveAI - Planificateur de Trajets pour Véhicules Électriques", layout="wide", page_icon="⚡")
 
-# --- INITIALISATION SMARTCAR ---
-sc_client = smartcar.AuthClient(
-    client_id=SC_CLIENT_ID,
-    client_secret=SC_CLIENT_SECRET,
-    redirect_uri=SC_REDIRECT_URI,
-    test_mode=True
-)
+# --- BANDEAU DE TITRE ---
+st.title("⚡ EcoDriveAI - Planificateur de Trajets pour Véhicules Électriques")
+st.markdown("### Optimisation de trajets longue distance par Intelligence Artificielle")
+st.caption("Gestion dynamique de la recharge, respect du SOC de sécurité et précision à l'arrivée.")
 
+# Initialisation
+sc_client = smartcar.AuthClient(SC_CLIENT_ID, SC_CLIENT_SECRET, SC_REDIRECT_URI, test_mode=True)
 if 'sc_token' not in st.session_state: st.session_state.sc_token = None
 if 'calcul_fait' not in st.session_state: st.session_state.calcul_fait = False
 
-# Capture du code OAuth et gestion du rafraîchissement
-query_params = st.query_params
-if "code" in query_params and st.session_state.sc_token is None:
-    try:
-        res_auth = sc_client.exchange_code(query_params["code"])
-        st.session_state.sc_token = res_auth.access_token
-        st.query_params.clear()
-        st.rerun()
-    except Exception as e:
-        st.error(f"Erreur d'authentification Smartcar : {e}")
+# OAuth
+qp = st.query_params
+if "code" in qp and st.session_state.sc_token is None:
+    res_auth = sc_client.exchange_code(qp["code"])
+    st.session_state.sc_token = res_auth.access_token
+    st.query_params.clear()
+    st.rerun()
 
 @st.cache_resource
 def init_services():
     nav = NavigationService(TOMTOM_KEY)
     weather = WeatherService()
     charger = ChargingService(['Datasets/Recharge_Data_1.csv', 'Datasets/Recharge_Data_2.csv', 'Datasets/Super_Recharge_Data.csv'], nav)
+    vehicle_db = VehicleService('Datasets/ev_database.csv')
     model = joblib.load('Test_V2/final_ev_model.pkl')
-    return nav, weather, charger, model
+    return nav, weather, charger, vehicle_db, model
 
-nav, weather, charger, model = init_services()
+nav, weather, charger, vehicle_db, model = init_services()
 
-# --- FONCTIONS TECHNIQUES ---
-def get_real_charging_power(max_pwr, soc):
-    if soc < 60: return max_pwr * 0.85
-    if soc < 80: return max_pwr * 0.50
-    return max_pwr * 0.20
+# --- MESSAGE DE LANCEMENT (NOUVEAU) ---
+if not st.session_state.get('calcul_fait'):
+    st.info("👋 **Bienvenue !** Configurez votre trajet dans la barre latérale à gauche, puis cliquez sur **Calculer l'itinéraire** pour générer votre plan de route personnalisé.")
 
-def predict_energy_safe(model, context):
+# --- PRÉDICTION IA SUR TRAJET COMPLET ---
+def predict_full_trip(model, route_summary, start_soc, humidity):
+    dist_km = route_summary['summary']['lengthInMeters'] / 1000
+    context = {'Speed_kmh': route_summary['vitesse_moy'], 'Distance_Travelled_km': dist_km, 'Battery_State_%': start_soc, 'Humidity_%': humidity, 'Battery_Temperature_C': 25}
     features = ["Speed_kmh", "Distance_Travelled_km", "Battery_State_%", "Humidity_%", "Battery_Temperature_C"]
     pred = float(model.predict(pd.DataFrame([context])[features])[0])
-    if pred > 150 and context['Distance_Travelled_km'] < 100: pred /= 1000
-    c100 = (pred / context['Distance_Travelled_km']) * 100 if context['Distance_Travelled_km'] > 0 else 0
-    if c100 > 35 or c100 < 8: pred = (18 / 100) * context['Distance_Travelled_km']
-    return max(0.0, pred)
+    if (pred / dist_km * 100) < 16.5: pred = (16.5 / 100) * dist_km
+    return pred
 
-# --- SIDEBAR DYNAMIQUE ---
+def get_real_charging_power(station_pwr, car_max_pwr, soc):
+    limit = min(float(station_pwr), float(car_max_pwr))
+    return limit * 0.85 if soc < 60 else limit * 0.50 if soc < 80 else limit * 0.20
+
+# --- SIDEBAR ---
 with st.sidebar:
-    st.title("🔋 Configuration")
+    st.title("🔧 Configuration du Trajet")
     dep_city = st.text_input("Départ")
     arr_city = st.text_input("Arrivée")
-    
     st.divider()
-    st.subheader("🚗 État du véhicule")
-    
-    soc_init = 100
-    capa = 60.0
-    show_manual_inputs = True
-
+    soc_init, capa, car_max_charge, show_manual = 100, 60.0, 150.0, True
     if st.session_state.sc_token:
         try:
             v_res = smartcar.get_vehicles(st.session_state.sc_token)
-            vehicle = smartcar.Vehicle(v_res.vehicles[0], st.session_state.sc_token)
-            
-            # Récupération signaux V3 (SOC + Capacité)
-            signals = vehicle.get_signals(['ev.battery.level', 'ev.battery.capacity'])
-            
-            if signals.body['ev.battery.level'].value is not None:
+            v = smartcar.Vehicle(v_res.vehicles[0], st.session_state.sc_token)
+            signals = v.get_signals(['ev.battery.level', 'ev.battery.capacity'])
+            if signals.body['ev.battery.level'].value:
                 soc_init = int(signals.body['ev.battery.level'].value * 100)
-                sc_info = vehicle.attributes()
-                st.success(f"✅ **{sc_info.make} {sc_info.model}**")
-                st.metric("Batterie détectée", f"{soc_init}%")
-                
-                # Si la capacité est dispo, on l'utilise
-                if signals.body['ev.battery.capacity'].value:
-                    capa = float(signals.body['ev.battery.capacity'].value)
-                    st.metric("Capacité détectée", f"{capa} kWh")
-                    show_manual_inputs = False
-                else:
-                    st.warning("⚠️ Capacité non détectée, veuillez choisir le modèle manuel.")
-        except:
-            st.warning("⚠️ Connexion limitée.")
-
-    if show_manual_inputs:
-        if st.session_state.sc_token is None:
-            auth_url = sc_client.get_auth_url(['read_battery', 'read_vehicle_info'], {'mode': 'simulated'})
-            st.link_button("🔗 Connecter mon véhicule", auth_url, width='stretch') # Syntax 2026
-        
-        ev_choice = st.selectbox("Modèle (Manuel)", options=list(EV_MODELS.keys()), index=2)
-        capa = EV_MODELS[ev_choice]
+                st.success(f"✅ Connecté : {v.attributes().make}")
+                match = vehicle_db.find_by_brand(v.attributes().make)
+                if match: capa, car_max_charge, show_manual = float(match['battery_capacity_kWh']), float(match['fast_charging_power_kw_dc']), False
+        except: pass
+    if show_manual:
+        v_list = vehicle_db.get_vehicle_list()
+        ev_choice = st.selectbox("Modèle", v_list if v_list else ["Tesla Model 3"])
+        details = vehicle_db.get_details(ev_choice)
+        if details: capa, car_max_charge = float(details['battery_capacity_kWh']), float(details['fast_charging_power_kw_dc'])
         soc_init = st.slider("Batterie départ (%)", 0, 100, soc_init)
-
-    if st.session_state.sc_token:
-        if st.button("🔌 Déconnecter", width='stretch'):
-            st.session_state.sc_token = None
-            st.rerun()
-
     st.divider()
-    soc_target = st.slider("Batterie arrivée visée (%)", 0, 100, 0)
+    soc_safety = st.slider("🛡️ SOC de sécurité (%)", 0, 25, 5)
+    soc_target = st.slider("🏁 SOC Arrivée visé (%)", soc_safety, 100, soc_safety)
     btn_calcul = st.button("🚀 Calculer l'itinéraire", width='stretch')
 
-# --- LOGIQUE DE CALCUL SÉCURISÉE ---
+# --- LOGIQUE DE CALCUL ---
 if btn_calcul:
-    with st.spinner("Analyse du trajet en cours..."):
-        c1, c2 = nav.get_coords(dep_city), nav.get_coords(arr_city)
-        if c1 and c2:
-            route_base = nav.calculate_route(c1, c2)
-            
-            # SÉCURITÉ : Vérification que la route a été trouvée (Fix NoneType error)
-            if route_base is None:
-                st.error("❌ Impossible de trouver un itinéraire entre ces deux points. Vérifiez l'orthographe.")
-            else:
-                meteo = weather.get_local_weather(c1[0], c1[1])
-                pts_km, pts_soc = [0], [soc_init]
-                
-                # Calcul IA Global
-                dist_totale = route_base['summary']['lengthInMeters']/1000
-                conso_ia = predict_energy_safe(model, {'Speed_kmh': route_base['vitesse_moy'], 'Distance_Travelled_km': dist_totale, 'Battery_State_%': soc_init, 'Humidity_%': meteo['humidity'], 'Battery_Temperature_C': 25})
-                
-                needs_stop = (soc_init - (conso_ia/capa*100)) < soc_target
-                t_charge, borne = 0, None
-                
-                def add_curved_segment(s_soc, d_leg, v_moy, k_total, f_target=None):
-                    c_globale = predict_energy_safe(model, {'Speed_kmh': v_moy, 'Distance_Travelled_km': d_leg, 'Battery_State_%': s_soc, 'Humidity_%': meteo['humidity'], 'Battery_Temperature_C': 25})
-                    s_diff = (c_globale / capa * 100)
-                    curr = s_soc
-                    for k in range(1, 11):
-                        poids = (1.2 if 3<=k<=8 else 0.8) / 10.0
-                        curr -= (s_diff * poids)
-                        if k == 10 and f_target is not None: curr = f_target
-                        pts_km.append(k_total + (d_leg/10)*k); pts_soc.append(max(0, curr))
-                    return curr
-
-                if needs_stop:
-                    mid_idx = len(route_base['geometry'])//2
-                    mid_pt = route_base['geometry'][mid_idx]
-                    borne = charger.find_best(mid_pt[0], mid_pt[1])
-                    if borne:
-                        l1, l2 = nav.calculate_route(c1, (borne['lat'], borne['lon'])), nav.calculate_route((borne['lat'], borne['lon']), c2)
-                        if l1 and l2:
-                            d1, d2 = l1['summary']['lengthInMeters']/1000, l2['summary']['lengthInMeters']/1000
-                            soc_borne = add_curved_segment(soc_init, d1, l1['vitesse_moy'], 0)
-                            
-                            e_l2 = predict_energy_safe(model, {'Speed_kmh': l2['vitesse_moy'], 'Distance_Travelled_km': d2, 'Battery_State_%': 50, 'Humidity_%': meteo['humidity'], 'Battery_Temperature_C': 25})
-                            s_rech = min(90.0, (e_l2/capa*100) + soc_target)
-                            
-                            t_charge = (((s_rech - soc_borne)*capa/100) / get_real_charging_power(borne['puissance'], (soc_borne+s_rech)/2)) * 60 * 1.15
-                            pts_km.append(d1); pts_soc.append(s_rech)
-                            add_curved_segment(s_rech, d2, l2['vitesse_moy'], d1, f_target=soc_target)
-                            res_g, res_d, res_t = l1['geometry']+l2['geometry'], d1+d2, (l1['summary']['travelTimeInSeconds']+l2['summary']['travelTimeInSeconds'])//60
-                        else: needs_stop = False
-                    else: needs_stop = False
-                
-                if not needs_stop:
-                    add_curved_segment(soc_init, dist_totale, route_base['vitesse_moy'], 0, f_target=soc_init-(conso_ia/capa*100))
-                    res_g, res_d, res_t = route_base['geometry'], dist_totale, route_base['summary']['travelTimeInSeconds'] // 60
-
-                st.session_state.res = {'c1': c1, 'c2': c2, 'geom': res_g, 'dist': res_d, 'temps': res_t, 'soc_final': pts_soc[-1], 'needs_stop': needs_stop, 'borne': borne, 'pts_km': pts_km, 'pts_soc': pts_soc, 't_charge': max(0, t_charge)}
-                st.session_state.calcul_fait = True
-        else:
-            st.error("📍 Coordonnées introuvables. Précisez la ville ou le pays.")
+    try:
+        with st.spinner("Calcul de l'itinéraire optimal..."):
+            c_start, c_end = nav.get_coords(dep_city), nav.get_coords(arr_city)
+            if c_start and c_end:
+                meteo = weather.get_local_weather(c_start[0], c_start[1])
+                pts_km, pts_soc, final_bornes, t_charge, t_route = [0], [soc_init], [], 0, 0
+                curr_pos, curr_soc, d_total, total_geom = c_start, float(soc_init), 0, []
+                for _ in range(8):
+                    full_trip = nav.calculate_route(curr_pos, c_end)
+                    if not full_trip: break
+                    conso_needed = predict_full_trip(model, full_trip, curr_soc, meteo['humidity'])
+                    arrival_soc = curr_soc - (conso_needed / capa * 100)
+                    if arrival_soc >= soc_target:
+                        pts_km.append(d_total + full_trip['dist_km']); pts_soc.append(arrival_soc)
+                        total_geom += full_trip['geometry']; t_route += full_trip['summary']['travelTimeInSeconds']; d_total += full_trip['dist_km']
+                        break
+                    else:
+                        autonomie_km = ((curr_soc - soc_safety) / (conso_needed / full_trip['dist_km'] / capa * 100))
+                        idx = min(int((autonomie_km * 0.85 / full_trip['dist_km']) * len(full_trip['geometry'])), len(full_trip['geometry'])-1)
+                        borne = charger.find_best(full_trip['geometry'][idx][0], full_trip['geometry'][idx][1])
+                        if not borne: break
+                        leg_to_borne = nav.calculate_route(curr_pos, (borne['lat'], borne['lon']))
+                        conso_to_borne = predict_full_trip(model, leg_to_borne, curr_soc, meteo['humidity'])
+                        soc_at_borne = curr_soc - (conso_to_borne / capa * 100)
+                        trip_after = nav.calculate_route((borne['lat'], borne['lon']), c_end)
+                        conso_after = predict_full_trip(model, trip_after, 50, meteo['humidity'])
+                        soc_rech = (conso_after / capa * 100) + soc_target
+                        soc_rech = min(95.0, max(soc_rech, soc_at_borne + 15))
+                        dur_c = int((((soc_rech - soc_at_borne)*capa/100) / get_real_charging_power(borne['puissance'], car_max_charge, (soc_at_borne+soc_rech)/2)) * 60 * 1.15)
+                        pts_km.append(d_total + leg_to_borne['dist_km']); pts_soc.append(soc_at_borne)
+                        pts_km.append(d_total + leg_to_borne['dist_km']); pts_soc.append(soc_rech)
+                        total_geom += leg_to_borne['geometry']; t_route += leg_to_borne['summary']['travelTimeInSeconds']; t_charge += dur_c
+                        d_total += leg_to_borne['dist_km']; curr_pos, curr_soc = (borne['lat'], borne['lon']), soc_rech
+                        final_bornes.append({**borne, 'duree': dur_c})
+                if total_geom:
+                    st.session_state.res = {'geom': total_geom, 'dist': d_total, 'bornes': final_bornes, 'pts_km': pts_km, 'pts_soc': pts_soc, 't_charge': t_charge, 't_route': t_route, 'c1': c_start, 'c2': c_end, 'safety': soc_safety}
+                    st.session_state.calcul_fait = True
+    except Exception as e: st.exception(e)
 
 # --- AFFICHAGE ---
-if st.session_state.calcul_fait:
+if st.session_state.get('calcul_fait'):
     res = st.session_state.res
     st.divider()
-    cols = st.columns(4 if res['needs_stop'] else 3)
-    cols[0].metric("📏 Distance", f"{res['dist']:.1f} km")
-    cols[1].metric("⏱️ Temps route", f"{res['temps']//60}h {res['temps']%60}min")
-    if res['needs_stop']:
-        cols[2].metric("🔌 Charge", f"{res['t_charge']:.0f} min")
-        cols[3].metric("🏁 Batterie", f"{res['soc_final']:.1f}%")
-        st.success(f"📍 **Plan de recharge :** Arrêt à la borne **{res['borne']['nom'].strip()}** ({res['t_charge']:.0f} min).")
-    else:
-        cols[2].metric("🏁 Batterie Arrivée", f"{res['soc_final']:.1f}%")
-        st.info("✅ Trajet direct sans recharge nécessaire.")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("📏 Distance", f"{res['dist']:.1f} km")
+    h, m = divmod((res['t_route'] // 60) + res['t_charge'], 60)
+    c2.metric("⏱️ Temps total", f"{h}h {m}min")
+    c3.metric("🔌 Dont charge", f"{res['t_charge']} min")
+    c4.metric("🏁 SOC Final", f"{res['pts_soc'][-1]:.1f}%")
 
-    m = folium.Map(location=[(res['c1'][0]+res['c2'][0])/2, (res['c1'][1]+res['c2'][1])/2], zoom_start=9)
+    if res['bornes']:
+        txt = [f"**{b['nom']}** ({b['duree']} min)" for b in res['bornes']]
+        st.success(f"🔋 **Stratégie validée par l'IA :** {', '.join(txt)}")
+
+    m = folium.Map(location=[res['c1'][0], res['c1'][1]], zoom_start=6)
     folium.PolyLine(res['geom'], color="#0045ff", weight=5).add_to(m)
-    folium.Marker(res['c1'], icon=folium.Icon(color='green', icon='play')).add_to(m)
-    folium.Marker(res['c2'], icon=folium.Icon(color='red', icon='flag')).add_to(m)
-    if res['needs_stop']: folium.Marker([res['borne']['lat'], res['borne']['lon']], popup=f"<b>{res['borne']['nom'].strip()}</b>", icon=folium.Icon(color='orange', icon='bolt', prefix='fa')).add_to(m)
+    for b in res['bornes']: folium.Marker([b['lat'], b['lon']], icon=folium.Icon(color='orange', icon='bolt', prefix='fa')).add_to(m)
     st_folium(m, width="100%", height=500, key="map")
 
-    st.subheader("📉 Profil de batterie")
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=res['pts_km'], y=res['pts_soc'], mode='lines+markers', line=dict(color='#00d1b2', width=4), name="SOC %"))
-    fig.add_hrect(y0=0, y1=20, fillcolor="red", opacity=0.15, annotation_text="ZONE CRITIQUE")
-    fig.update_layout(xaxis_title="Distance (KM)", yaxis_title="Niveau Batterie (%)", template="plotly_dark")
+    fig.add_trace(go.Scatter(x=res['pts_km'], y=res['pts_soc'], mode='lines+markers', line=dict(color='#00d1b2', width=4)))
+    fig.add_hrect(y0=0, y1=res['safety'], fillcolor="red", opacity=0.15, annotation_text=f"SÉCURITÉ ({res['safety']}%)")
+    fig.update_layout(xaxis_title="KM", yaxis_title="%", template="plotly_dark")
     st.plotly_chart(fig, width='stretch')
-
-else:
-    st.info("📌 Entrez les villes de départ et d'arrivée, puis cliquez sur 'Calculer l'itinéraire' pour voir le résultat.")
