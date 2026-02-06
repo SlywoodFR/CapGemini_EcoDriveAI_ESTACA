@@ -12,3 +12,7 @@ matplotlib
 ipykernel
 numpy
 xgboost
+streamlit
+folium
+streamlit_folium
+plotly

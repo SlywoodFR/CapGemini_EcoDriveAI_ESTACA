@@ -35,8 +35,8 @@ def main():
 
     # Paramètres utilisateur
     depart, arrivee = "Paris, France", "Marseille, France"
-    soc_actuel = 100.0    # Simulation batterie faible
-    soc_min_visé = 20.0  # Ton seuil de sécurité
+    soc_actuel = 100.0    
+    soc_min_visé = 20.0  
     capa_batt = 60.0
 
     print(f"\n📍 Analyse du trajet : {depart} -> {arrivee}")
