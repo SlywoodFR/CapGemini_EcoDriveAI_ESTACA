@@ -93,6 +93,7 @@ with st.sidebar:
 
 # --- LOGIQUE DE CALCUL ---
 if btn_calcul:
+    st.session_state.calcul_fait = False
     try:
         with st.spinner("Calcul de l'itinéraire optimal..."):
             c_start, c_end = nav.get_coords(dep_city), nav.get_coords(arr_city)
