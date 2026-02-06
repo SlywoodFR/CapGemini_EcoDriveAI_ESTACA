@@ -151,9 +151,3 @@ if st.session_state.get('calcul_fait'):
     folium.PolyLine(res['geom'], color="#0045ff", weight=5).add_to(m)
     for b in res['bornes']: folium.Marker([b['lat'], b['lon']], icon=folium.Icon(color='orange', icon='bolt', prefix='fa')).add_to(m)
     st_folium(m, width="100%", height=500, key="map")
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=res['pts_km'], y=res['pts_soc'], mode='lines+markers', line=dict(color='#00d1b2', width=4)))
-    fig.add_hrect(y0=0, y1=res['safety'], fillcolor="red", opacity=0.15, annotation_text=f"SÉCURITÉ ({res['safety']}%)")
-    fig.update_layout(xaxis_title="KM", yaxis_title="%", template="plotly_dark")
-    st.plotly_chart(fig, width='stretch')
