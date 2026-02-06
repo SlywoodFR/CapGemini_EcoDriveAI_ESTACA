@@ -3,7 +3,6 @@ import numpy as np
 import requests
 import requests_cache
 import urllib.parse
-import json
 
 cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
 
@@ -21,6 +20,7 @@ class NavigationService:
     def __init__(self, tomtom_key):
         self.key = tomtom_key
     def get_coords(self, query):
+        if not query: return None
         url = f"https://api.tomtom.com/search/2/geocode/{urllib.parse.quote(query)}.json"
         try:
             resp = requests.get(url, params={'key': self.key}).json()
@@ -34,8 +34,11 @@ class NavigationService:
         try:
             resp = requests.get(url, params={'key': self.key, 'traffic': 'true'}).json()
             route = resp['routes'][0]
+            summary = route['summary']
+            # Vitesse moyenne réelle TomTom
+            v_moy = (summary['lengthInMeters'] / summary['travelTimeInSeconds']) * 3.6
             geom = [(p['latitude'], p['longitude']) for leg in route['legs'] for p in leg['points']]
-            return {'summary': route['summary'], 'geometry': geom}
+            return {'summary': summary, 'geometry': geom, 'vitesse_moy': v_moy}
         except: return None
 
 class ChargingService:
@@ -54,22 +57,14 @@ class ChargingService:
             except: pass
         master = pd.concat(dfs, ignore_index=True).dropna(subset=['consolidated_latitude', 'consolidated_longitude'])
         return master[(master['consolidated_latitude'] > 41) & (master['consolidated_latitude'] < 52) & (master['consolidated_longitude'] > -5)].copy()
-
     def find_best(self, lat, lon, radius=15):
-        """Priorité au détour minimum (Distance)"""
         self.stations['dist'] = np.sqrt(((self.stations['consolidated_latitude']-lat)*111)**2 + ((self.stations['consolidated_longitude']-lon)*74)**2)
-        # On filtre les bornes rapides (> 40kW) pour ne pas charger sur une prise maison
         nearby = self.stations[(self.stations['dist'] <= radius) & (self.stations['puissance_nominale'] >= 43)].copy()
-        if nearby.empty: 
-            nearby = self.stations[self.stations['dist'] <= radius].copy() # Fallback si pas de bornes rapides
-        
+        if nearby.empty: nearby = self.stations[self.stations['dist'] <= radius].copy()
         if nearby.empty: return None
-        
-        # TRI PAR DISTANCE (Le moins de détour possible)
         best = nearby.sort_values('dist', ascending=True).iloc[0]
-        
         addr = f"{best['nom_station']}, {best['adresse_station']}"
-        real_coords = self.nav.get_coords(addr)
-        if real_coords:
-            return {"nom": best['nom_station'], "lat": real_coords[0], "lon": real_coords[1], "puissance": best['puissance_nominale'], "dist": best['dist']}
+        coords = self.nav.get_coords(addr)
+        if coords:
+            return {"nom": best['nom_station'], "lat": coords[0], "lon": coords[1], "puissance": best['puissance_nominale'], "dist": best['dist']}
         return None

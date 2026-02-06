@@ -16,3 +16,4 @@ streamlit
 folium
 streamlit_folium
 plotly
+smartcar
