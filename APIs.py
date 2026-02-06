@@ -42,7 +42,6 @@ class NavigationService:
         if not query or len(query) < 3:
             return []
         
-        # Filtrage strict sur la France (FR) pour la sécurité
         url = f"https://api.tomtom.com/search/2/search/{urllib.parse.quote(query)}.json"
         params = {
             'key': self.key,
@@ -53,17 +52,25 @@ class NavigationService:
         }
         
         try:
-            resp = requests.get(url, params=params).json()
+            resp = requests.get(url, params=params)
+            # Diagnostique immédiat : si TomTom bloque, on le saura
+            if resp.status_code == 403:
+                print("🚨 Erreur 403 : Quota TomTom dépassé ou clé invalide.")
+                return ["ERREUR : Quota API dépassé"]
+            if resp.status_code != 200:
+                return []
+
+            data = resp.json()
             suggestions = []
-            if 'results' in resp:
-                for r in resp['results']:
+            if 'results' in data:
+                for r in data['results']:
                     addr = r.get('address', {})
-                    # Formatage : Ville (Code Postal)
                     label = f"{addr.get('freeformAddress', '')}"
                     if label not in suggestions:
                         suggestions.append(label)
             return suggestions
-        except:
+        except Exception as e:
+            print(f"❌ Erreur réseau : {e}")
             return []
 
 class ChargingService:
