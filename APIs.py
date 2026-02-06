@@ -46,7 +46,7 @@ class NavigationService:
         # Étape 1 : Vérifier que la fonction se lance
         st.toast(f"🔍 Recherche TomTom : {query}") 
 
-        url = f"https://api.tomtom.com/search/2/search/{urllib.parse.quote(query)}.json"
+        url = f"https://api.tomtom.com/search/2/fuzzySearch/{urllib.parse.quote(query)}.json"
         params = {
             'key': self.key,
             'typeahead': 'true',
@@ -58,7 +58,6 @@ class NavigationService:
         try:
             resp = requests.get(url, params=params, timeout=5)
             
-            # Étape 2 : Vérifier le statut de l'API
             if resp.status_code == 403:
                 st.toast("🚫 Erreur 403 : Clé API refusée ou Quota épuisé", icon="❌")
                 return []
