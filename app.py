@@ -208,3 +208,6 @@ if st.session_state.calcul_fait:
     fig.add_hrect(y0=0, y1=20, fillcolor="red", opacity=0.15, annotation_text="ZONE CRITIQUE")
     fig.update_layout(xaxis_title="Distance (KM)", yaxis_title="Niveau Batterie (%)", template="plotly_dark")
     st.plotly_chart(fig, width='stretch')
+
+else:
+    st.info("📌 Entrez les villes de départ et d'arrivée, puis cliquez sur 'Calculer l'itinéraire' pour voir le résultat.")
