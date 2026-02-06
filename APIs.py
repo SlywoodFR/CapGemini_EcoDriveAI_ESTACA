@@ -3,6 +3,7 @@ import numpy as np
 import requests
 import requests_cache
 import urllib.parse
+import streamlit as st
 
 class WeatherService:
     def __init__(self):
@@ -38,11 +39,13 @@ class NavigationService:
             geom = [(p['latitude'], p['longitude']) for leg in route['legs'] for p in leg['points']]
             return {'summary': summary, 'geometry': geom, 'vitesse_moy': v_moy, 'dist_km': summary['lengthInMeters']/1000}
         except: return None
-    def get_suggestions(self, query, **kwargs): 
+    def get_suggestions(self, query, **kwargs):
         if not query or len(query) < 3:
             return []
         
-        # Le reste de ton code ne bouge pas
+        # Étape 1 : Vérifier que la fonction se lance
+        st.toast(f"🔍 Recherche TomTom : {query}") 
+
         url = f"https://api.tomtom.com/search/2/search/{urllib.parse.quote(query)}.json"
         params = {
             'key': self.key,
@@ -53,16 +56,37 @@ class NavigationService:
         }
         
         try:
-            resp = requests.get(url, params=params).json()
+            resp = requests.get(url, params=params, timeout=5)
+            
+            # Étape 2 : Vérifier le statut de l'API
+            if resp.status_code == 403:
+                st.toast("🚫 Erreur 403 : Clé API refusée ou Quota épuisé", icon="❌")
+                return []
+            elif resp.status_code == 429:
+                st.toast("⏳ Erreur 429 : Trop de requêtes (Spam détecté)", icon="⚠️")
+                return []
+            elif resp.status_code != 200:
+                st.toast(f"❓ Erreur {resp.status_code}", icon="⚠️")
+                return []
+
+            data = resp.json()
             suggestions = []
-            if 'results' in resp:
-                for r in resp['results']:
+            if 'results' in data:
+                for r in data['results']:
                     addr = r.get('address', {})
                     label = f"{addr.get('freeformAddress', '')}"
                     if label not in suggestions:
                         suggestions.append(label)
+            
+            # Étape 3 : Confirmer si on a trouvé quelque chose
+            if not suggestions:
+                st.toast("📭 Aucun résultat trouvé", icon="ℹ️")
+            else:
+                st.toast(f"✅ {len(suggestions)} suggestions trouvées", icon="📍")
+                
             return suggestions
-        except:
+        except Exception as e:
+            st.toast(f"💥 Erreur réseau : {e}", icon="🔥")
             return []
 
 class ChargingService:
