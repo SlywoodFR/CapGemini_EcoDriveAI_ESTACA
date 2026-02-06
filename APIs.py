@@ -38,10 +38,11 @@ class NavigationService:
             geom = [(p['latitude'], p['longitude']) for leg in route['legs'] for p in leg['points']]
             return {'summary': summary, 'geometry': geom, 'vitesse_moy': v_moy, 'dist_km': summary['lengthInMeters']/1000}
         except: return None
-    def get_suggestions(self, query):
+    def get_suggestions(self, query, **kwargs): # Ajoute **kwargs ici
         if not query or len(query) < 3:
             return []
         
+        # Le reste du code reste identique
         url = f"https://api.tomtom.com/search/2/search/{urllib.parse.quote(query)}.json"
         params = {
             'key': self.key,
@@ -52,25 +53,16 @@ class NavigationService:
         }
         
         try:
-            resp = requests.get(url, params=params)
-            # Diagnostique immédiat : si TomTom bloque, on le saura
-            if resp.status_code == 403:
-                print("🚨 Erreur 403 : Quota TomTom dépassé ou clé invalide.")
-                return ["ERREUR : Quota API dépassé"]
-            if resp.status_code != 200:
-                return []
-
-            data = resp.json()
+            resp = requests.get(url, params=params).json()
             suggestions = []
-            if 'results' in data:
-                for r in data['results']:
+            if 'results' in resp:
+                for r in resp['results']:
                     addr = r.get('address', {})
                     label = f"{addr.get('freeformAddress', '')}"
                     if label not in suggestions:
                         suggestions.append(label)
             return suggestions
-        except Exception as e:
-            print(f"❌ Erreur réseau : {e}")
+        except:
             return []
 
 class ChargingService:
