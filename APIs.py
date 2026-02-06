@@ -38,6 +38,33 @@ class NavigationService:
             geom = [(p['latitude'], p['longitude']) for leg in route['legs'] for p in leg['points']]
             return {'summary': summary, 'geometry': geom, 'vitesse_moy': v_moy, 'dist_km': summary['lengthInMeters']/1000}
         except: return None
+    def get_suggestions(self, query):
+        if not query or len(query) < 3:
+            return []
+        
+        # Filtrage strict sur la France (FR) pour la sécurité
+        url = f"https://api.tomtom.com/search/2/search/{urllib.parse.quote(query)}.json"
+        params = {
+            'key': self.key,
+            'typeahead': 'true',
+            'language': 'fr-FR',
+            'countrySet': 'FR', 
+            'limit': 5
+        }
+        
+        try:
+            resp = requests.get(url, params=params).json()
+            suggestions = []
+            if 'results' in resp:
+                for r in resp['results']:
+                    addr = r.get('address', {})
+                    # Formatage : Ville (Code Postal)
+                    label = f"{addr.get('freeformAddress', '')}"
+                    if label not in suggestions:
+                        suggestions.append(label)
+            return suggestions
+        except:
+            return []
 
 class ChargingService:
     def __init__(self, files, nav_service):

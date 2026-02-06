@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from APIs import WeatherService, NavigationService, ChargingService, VehicleService
 import numpy as np
 import smartcar
+from streamlit_searchbox import st_searchbox
 
 # --- CONFIGURATION ---
 TOMTOM_KEY = st.secrets["TOMTOM_KEY"]
@@ -54,9 +55,21 @@ def get_real_charging_power(station_pwr, car_max_pwr, soc):
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("📍 Itinéraire")
-    dep_city = st.text_input("Départ (ex: Laval, France)", key="dep")
-    arr_city = st.text_input("Arrivée (ex: Marseille, France)", key="arr")
+    st.title("🔧 Configuration du Trajet")
+    
+    st.subheader("📍 Itinéraire")
+    dep_city = st_searchbox(
+        nav.get_suggestions, 
+        key="dep_search", 
+        placeholder="Lieu de départ..."
+    )
+    
+    arr_city = st_searchbox(
+        nav.get_suggestions, 
+        key="arr_search", 
+        placeholder="Lieu d'arrivée..."
+    )
+    
     st.divider()
     
     v_list = vehicle_db.get_vehicle_list()
@@ -73,75 +86,78 @@ with st.sidebar:
 if btn_calcul:
     st.session_state.calcul_fait = False 
     
-    with st.status("🔍 Vérification des adresses...", expanded=True) as status:
-        c_start = nav.get_coords(dep_city)
-        if c_start:
-            st.write(f"✅ Départ trouvé : {dep_city}")
-        else:
-            st.error(f"❌ Impossible de localiser : **{dep_city}**")
-            st.stop()
-            
-        c_end = nav.get_coords(arr_city)
-        if c_end:
-            st.write(f"✅ Arrivée trouvée : {arr_city}")
-        else:
-            st.error(f"❌ Impossible de localiser : **{arr_city}**")
-            st.stop()
-        
-        # --- NOUVELLE SÉCURITÉ : Distance cohérente (anti-continent) ---
-        dist_directe = np.sqrt(((c_start[0]-c_end[0])*111)**2 + ((c_start[1]-c_end[1])*74)**2)
-        if dist_directe > 1500:
-            st.error(f"⚠️ **Distance incohérente : {dist_directe:.0f} km.**")
-            st.write("Il semble que l'une des villes soit sur un autre continent (ex: Laval au Québec).")
-            st.info("💡 **Conseil :** Précisez le pays dans votre saisie (ex: 'Laval, France').")
-            st.stop()
-
-        status.update(label="🚀 Adresses validées. Simulation en cours...", state="running")
-
-        try:
-            meteo = weather.get_local_weather(c_start[0], c_start[1])
-            pts_km, pts_soc, final_bornes, t_charge, t_route = [0], [soc_init], [], 0, 0
-            curr_pos, curr_soc, d_total, total_geom = c_start, float(soc_init), 0, []
-
-            for _ in range(8):
-                full_trip = nav.calculate_route(curr_pos, c_end)
+    if not dep_city or not arr_city:
+        st.error("❌ Veuillez sélectionner une adresse dans la liste des suggestions.")
+    else:
+        with st.status("🔍 Vérification des adresses...", expanded=True) as status:
+            c_start = nav.get_coords(dep_city)
+            if c_start:
+                st.write(f"✅ Départ trouvé : {dep_city}")
+            else:
+                st.error(f"❌ Impossible de localiser : **{dep_city}**")
+                st.stop()
                 
-                # --- SÉCURITÉ : Aucun chemin trouvé entre les points ---
-                if not full_trip:
-                    st.error("❌ Aucun itinéraire routier trouvé. Vérifiez que les deux points sont sur le même continent.")
-                    st.stop()
-                    
-                conso_needed = predict_full_trip(model, full_trip, curr_soc, meteo['humidity'])
-                arrival_soc = curr_soc - (conso_needed / capa * 100)
-
-                if arrival_soc >= soc_target:
-                    pts_km.append(d_total + full_trip['dist_km']); pts_soc.append(arrival_soc)
-                    total_geom += full_trip['geometry']; t_route += full_trip['summary']['travelTimeInSeconds']; d_total += full_trip['dist_km']
-                    break
-                else:
-                    autonomie_km = ((curr_soc - soc_safety) / (conso_needed / full_trip['dist_km'] / capa * 100))
-                    idx = min(int((autonomie_km * 0.85 / full_trip['dist_km']) * len(full_trip['geometry'])), len(full_trip['geometry'])-1)
-                    borne = charger.find_best(full_trip['geometry'][idx][0], full_trip['geometry'][idx][1])
-                    if not borne: break
-                    leg_to_borne = nav.calculate_route(curr_pos, (borne['lat'], borne['lon']))
-                    conso_to_borne = predict_full_trip(model, leg_to_borne, curr_soc, meteo['humidity'])
-                    soc_at_borne = curr_soc - (conso_to_borne / capa * 100)
-                    trip_after = nav.calculate_route((borne['lat'], borne['lon']), c_end)
-                    conso_after = predict_full_trip(model, trip_after, 50, meteo['humidity'])
-                    soc_rech = (conso_after / capa * 100) + soc_target
-                    soc_rech = min(95.0, max(soc_rech, soc_at_borne + 15))
-                    dur_c = int((((soc_rech - soc_at_borne)*capa/100) / get_real_charging_power(borne['puissance'], car_max_charge, (soc_at_borne+soc_rech)/2)) * 60 * 1.15)
-                    pts_km.append(d_total + leg_to_borne['dist_km']); pts_soc.append(soc_at_borne); pts_km.append(d_total + leg_to_borne['dist_km']); pts_soc.append(soc_rech)
-                    total_geom += leg_to_borne['geometry']; t_route += leg_to_borne['summary']['travelTimeInSeconds']; t_charge += dur_c
-                    d_total += leg_to_borne['dist_km']; curr_pos, curr_soc = (borne['lat'], borne['lon']), soc_rech
-                    final_bornes.append({**borne, 'duree': dur_c})
+            c_end = nav.get_coords(arr_city)
+            if c_end:
+                st.write(f"✅ Arrivée trouvée : {arr_city}")
+            else:
+                st.error(f"❌ Impossible de localiser : **{arr_city}**")
+                st.stop()
             
-            if total_geom:
-                st.session_state.res = {'geom': total_geom, 'dist': d_total, 'bornes': final_bornes, 'pts_km': pts_km, 'pts_soc': pts_soc, 't_charge': t_charge, 't_route': t_route, 'c1': c_start, 'c2': c_end}
-                st.session_state.calcul_fait = True
-                status.update(label="✅ Calcul terminé !", state="complete")
-        except Exception as e:
-            st.error(f"Erreur durant le calcul : {e}")
+            # --- NOUVELLE SÉCURITÉ : Distance cohérente (anti-continent) ---
+            dist_directe = np.sqrt(((c_start[0]-c_end[0])*111)**2 + ((c_start[1]-c_end[1])*74)**2)
+            if dist_directe > 1500:
+                st.error(f"⚠️ **Distance incohérente : {dist_directe:.0f} km.**")
+                st.write("Il semble que l'une des villes soit sur un autre continent (ex: Laval au Québec).")
+                st.info("💡 **Conseil :** Précisez le pays dans votre saisie (ex: 'Laval, France').")
+                st.stop()
+
+            status.update(label="🚀 Adresses validées. Simulation en cours...", state="running")
+
+            try:
+                meteo = weather.get_local_weather(c_start[0], c_start[1])
+                pts_km, pts_soc, final_bornes, t_charge, t_route = [0], [soc_init], [], 0, 0
+                curr_pos, curr_soc, d_total, total_geom = c_start, float(soc_init), 0, []
+
+                for _ in range(8):
+                    full_trip = nav.calculate_route(curr_pos, c_end)
+                    
+                    # --- SÉCURITÉ : Aucun chemin trouvé entre les points ---
+                    if not full_trip:
+                        st.error("❌ Aucun itinéraire routier trouvé. Vérifiez que les deux points sont sur le même continent.")
+                        st.stop()
+                        
+                    conso_needed = predict_full_trip(model, full_trip, curr_soc, meteo['humidity'])
+                    arrival_soc = curr_soc - (conso_needed / capa * 100)
+
+                    if arrival_soc >= soc_target:
+                        pts_km.append(d_total + full_trip['dist_km']); pts_soc.append(arrival_soc)
+                        total_geom += full_trip['geometry']; t_route += full_trip['summary']['travelTimeInSeconds']; d_total += full_trip['dist_km']
+                        break
+                    else:
+                        autonomie_km = ((curr_soc - soc_safety) / (conso_needed / full_trip['dist_km'] / capa * 100))
+                        idx = min(int((autonomie_km * 0.85 / full_trip['dist_km']) * len(full_trip['geometry'])), len(full_trip['geometry'])-1)
+                        borne = charger.find_best(full_trip['geometry'][idx][0], full_trip['geometry'][idx][1])
+                        if not borne: break
+                        leg_to_borne = nav.calculate_route(curr_pos, (borne['lat'], borne['lon']))
+                        conso_to_borne = predict_full_trip(model, leg_to_borne, curr_soc, meteo['humidity'])
+                        soc_at_borne = curr_soc - (conso_to_borne / capa * 100)
+                        trip_after = nav.calculate_route((borne['lat'], borne['lon']), c_end)
+                        conso_after = predict_full_trip(model, trip_after, 50, meteo['humidity'])
+                        soc_rech = (conso_after / capa * 100) + soc_target
+                        soc_rech = min(95.0, max(soc_rech, soc_at_borne + 15))
+                        dur_c = int((((soc_rech - soc_at_borne)*capa/100) / get_real_charging_power(borne['puissance'], car_max_charge, (soc_at_borne+soc_rech)/2)) * 60 * 1.15)
+                        pts_km.append(d_total + leg_to_borne['dist_km']); pts_soc.append(soc_at_borne); pts_km.append(d_total + leg_to_borne['dist_km']); pts_soc.append(soc_rech)
+                        total_geom += leg_to_borne['geometry']; t_route += leg_to_borne['summary']['travelTimeInSeconds']; t_charge += dur_c
+                        d_total += leg_to_borne['dist_km']; curr_pos, curr_soc = (borne['lat'], borne['lon']), soc_rech
+                        final_bornes.append({**borne, 'duree': dur_c})
+                
+                if total_geom:
+                    st.session_state.res = {'geom': total_geom, 'dist': d_total, 'bornes': final_bornes, 'pts_km': pts_km, 'pts_soc': pts_soc, 't_charge': t_charge, 't_route': t_route, 'c1': c_start, 'c2': c_end}
+                    st.session_state.calcul_fait = True
+                    status.update(label="✅ Calcul terminé !", state="complete")
+            except Exception as e:
+                st.error(f"Erreur durant le calcul : {e}")
 
 # --- AFFICHAGE ---
 if st.session_state.get('calcul_fait'):
