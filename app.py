@@ -61,13 +61,15 @@ with st.sidebar:
     dep_city = st_searchbox(
         nav.get_suggestions, 
         key="dep_search", 
-        placeholder="Lieu de départ..."
+        placeholder="Lieu de départ...",
+        edit_timedelta=0.5 
     )
     
     arr_city = st_searchbox(
         nav.get_suggestions, 
         key="arr_search", 
-        placeholder="Lieu d'arrivée..."
+        placeholder="Lieu d'arrivée...",
+        edit_timedelta=0.5
     )
     
     st.divider()
