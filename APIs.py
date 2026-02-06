@@ -38,11 +38,11 @@ class NavigationService:
             geom = [(p['latitude'], p['longitude']) for leg in route['legs'] for p in leg['points']]
             return {'summary': summary, 'geometry': geom, 'vitesse_moy': v_moy, 'dist_km': summary['lengthInMeters']/1000}
         except: return None
-    def get_suggestions(self, query, **kwargs): # Ajoute **kwargs ici
+    def get_suggestions(self, query, **kwargs): 
         if not query or len(query) < 3:
             return []
         
-        # Le reste du code reste identique
+        # Le reste de ton code ne bouge pas
         url = f"https://api.tomtom.com/search/2/search/{urllib.parse.quote(query)}.json"
         params = {
             'key': self.key,
