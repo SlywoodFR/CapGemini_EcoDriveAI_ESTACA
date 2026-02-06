@@ -9,10 +9,10 @@ import numpy as np
 import smartcar
 
 # --- CONFIGURATION ---
-TOMTOM_KEY = "Mn7jMVv7fCgBTRjLxMEQqiLqSTQzmlYC"
-SC_CLIENT_ID = '474fb84e-7dad-49d9-af3d-b82727c213db'
-SC_CLIENT_SECRET = '2c9940fb-3997-4b0e-b57b-6f3f521df2eb'
-SC_REDIRECT_URI = 'http://localhost:8501'
+TOMTOM_KEY = st.secrets["TOMTOM_KEY"]
+SC_CLIENT_ID = st.secrets["SC_CLIENT_ID"]
+SC_CLIENT_SECRET = st.secrets["SC_CLIENT_SECRET"]
+SC_REDIRECT_URI = st.secrets["SC_REDIRECT_URI"]
 
 st.set_page_config(page_title="EcoDriveAI - Planificateur de Trajets pour Véhicules Électriques", layout="wide", page_icon="⚡")
 
@@ -96,7 +96,12 @@ if btn_calcul:
     try:
         with st.spinner("Calcul de l'itinéraire optimal..."):
             c_start, c_end = nav.get_coords(dep_city), nav.get_coords(arr_city)
-            if c_start and c_end:
+            # --- GESTION D'ERREUR : Points non reconnus ---
+            if not c_start:
+                st.error(f"❌ La ville de départ '**{dep_city}**' n'est pas reconnue. Vérifiez l'orthographe.")
+            elif not c_end:
+                st.error(f"❌ La ville d'arrivée '**{arr_city}**' n'est pas reconnue. Vérifiez l'orthographe.")
+            else:
                 meteo = weather.get_local_weather(c_start[0], c_start[1])
                 pts_km, pts_soc, final_bornes, t_charge, t_route = [0], [soc_init], [], 0, 0
                 curr_pos, curr_soc, d_total, total_geom = c_start, float(soc_init), 0, []
