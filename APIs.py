@@ -35,7 +35,6 @@ class NavigationService:
             resp = requests.get(url, params={'key': self.key, 'traffic': 'true'}).json()
             route = resp['routes'][0]
             summary = route['summary']
-            # Vitesse moyenne réelle TomTom
             v_moy = (summary['lengthInMeters'] / summary['travelTimeInSeconds']) * 3.6
             geom = [(p['latitude'], p['longitude']) for leg in route['legs'] for p in leg['points']]
             return {'summary': summary, 'geometry': geom, 'vitesse_moy': v_moy}
